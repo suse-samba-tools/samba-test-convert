@@ -4,7 +4,7 @@ import re, sys
 data = ''
 with open(sys.argv[1], 'r') as f:
     data = f.read()
-    cli = re.findall('struct smbcli_state \*([^,;\)]+)', data)
+    cli = re.findall('struct smbcli_state \*([^,;\)\(]+)[,;\)]', data)
     data = re.sub('struct smbcli_state', 'struct smb2_tree', data)
     data = re.sub('\s*struct smbcli_session_options session_options;', r'', data)
     data = re.sub('struct smbcli_session', 'struct smb2_session', data)
