@@ -95,6 +95,20 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('%s\.\w+\.out' % o, '%s.out' % o, data)
 
     data = re.sub('smb_raw_open\s*\(', 'smb2_create(', data)
+    data = re.sub('smb_raw_open_send\s*\(', 'smb2_create_send(', data)
+    data = re.sub('smb_raw_ulogoff\s*\(', 'smb2_logoff(', data)
+    data = re.sub('smbcli_unlink\s*\(', 'smb2_util_unlink(', data)
+
+    echo = re.findall('struct\s+smb_echo\s+([^,;]+)', data)
+    for e in echo:
+        # Erase the echo struct
+        data = re.sub('\s*struct\s+smb_echo %s.*' % e, '', data)
+
+        # Replace the smb_raw_echo call with an smb2_keepalive
+        data = re.sub('smb_raw_echo\s*\(([^,]+),\s*([^\)]+)\)', r'smb2_keepalive(\1)', data)
+
+        # Erase the echo struct initializations
+        data = re.sub('\n.*%s[^;]*;' % e, '', data)
 
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
