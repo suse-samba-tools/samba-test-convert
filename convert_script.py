@@ -9,7 +9,7 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('\s*struct smbcli_session_options session_options;', r'', data)
     data = re.sub('struct smbcli_session', 'struct smb2_session', data)
     data = re.sub('\s*lpcfg_smbcli_session_options\(torture->lp_ctx, &session_options\);', r'', data)
-    torture = re.findall('struct torture_context \*([^\);]+)', data)
+    torture = re.findall('struct torture_context \*([^\);,]+)', data)
     if len(torture) == 0:
         torture = re.findall('torture_setting_string\(([^,]+),', data)
     if len(torture) > 0:
@@ -49,21 +49,28 @@ with open(sys.argv[1], 'r') as f:
         # Replace the smb_composite_sesssetup
         data = re.sub('smb_composite_sesssetup\(([^,]+),\s*([^\)]+)\)', r'smb2_session_setup_spnego(\1, %s, 0)' % creds, data)
 
-    data = re.sub('smbcli_session_init\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_session_init(\1, lpcfg_gensec_settings(%s, %s->lp_ctx), \2)' % (torture[0], torture[0]), data)
+    if len(torture) > 0:
+        data = re.sub('smbcli_session_init\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_session_init(\1, lpcfg_gensec_settings(%s, %s->lp_ctx), \2)' % (torture[0], torture[0]), data)
 
-    data = re.sub('struct\s+smbcli_request', 'struct\s+smb2_request', data)
+    data = re.sub('struct\s+smbcli_request', 'struct smb2_request', data)
 
     lock = re.findall('union\s+smb_lock\s+([^,;]+)', data)
     for l in lock:
         # Replace the definition
-        data = re.sub('union\s+smb_lock', 'struct\s+smb2_lock', data)
+        data = re.sub('union\s+smb_lock', 'struct smb2_lock', data)
 
         # Remove the lock level
-        data = re.sub('\s*%s\.\w+\.level\s*=\s*\w+' % l, '', data)
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % l, '', data)
 
         # Replace the lock inputs/outputs
-        data = data.replace('%s\.\w+\.in' % l, '%s.in' % l)
-        data = data.replace('%s\.\w+\.out' % l, '%s.out' % l)
+        data = re.sub('%s\.\w+\.in' % l, '%s.in' % l, data)
+        data = re.sub('%s\.\w+\.out' % l, '%s.out' % l, data)
+
+    if len(torture) > 0:
+        data = re.sub('torture_setup_dir\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setup_dir(%s, \1, \2)' % torture[0], data)
+
+    data = data.replace('smbcli_deltree', 'smb2_deltree')
+    data = data.replace('smbcli_close', 'smb2_util_close')
 
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
