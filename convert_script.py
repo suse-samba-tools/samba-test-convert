@@ -110,6 +110,9 @@ with open(sys.argv[1], 'r') as f:
         # Erase the echo struct initializations
         data = re.sub('\n.*%s[^;]*;' % e, '', data)
 
+    # Replace smbcli_nt_create_full with smb2_create
+    data = re.sub('\n(\s*)(.*)smbcli_nt_create_full\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\1struct smb2_create io;\n\1io.in.fname = \4;\1io.in.create_flags = \5;\1io.in.desired_access = \6;\1io.in.file_attributes = \7;\1io.in.share_access = \8;\1io.in.create_disposition = \9;\1io.in.create_options = \10;\1io.in.security_flags = \11;\1smb2_create(\3, \3, &io);\n\1\2io.out.file.handle;', data)
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
