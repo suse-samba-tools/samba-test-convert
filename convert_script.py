@@ -72,6 +72,30 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('smbcli_deltree', 'smb2_deltree')
     data = data.replace('smbcli_close', 'smb2_util_close')
 
+    sopen = re.findall('union\s+smb_open\s+([^,;]+)', data)
+    for o in sopen:
+        # Replace the definition
+        data = re.sub('union\s+smb_open', 'struct smb2_create', data)
+
+        # Remove the open level
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % o, '', data)
+
+        # Remove deprecated option root_fid
+        data = re.sub('\n.*%s\.ntcreatex\.in\.root_fid\.fnum\s*=\s*\w+;' % o, '', data)
+
+        # Handle ntcreatex specific conversions
+        data = re.sub('%s\.ntcreatex\.in\.flags' % o, '%s.in.create_flags' % o, data)
+        data = re.sub('%s\.ntcreatex\.in\.access_mask' % o, '%s.in.desired_access' % o, data)
+        data = re.sub('%s\.ntcreatex\.in\.file_attr' % o, '%s.in.file_attributes' % o, data)
+        data = re.sub('%s\.ntcreatex\.in\.open_disposition' % o, '%s.in.create_disposition' % o, data)
+        data = re.sub('%s\.ntcreatex\.in\.impersonation' % o, '%s.in.impersonation_level' % o, data)
+
+        # Replace the open inputs/outputs
+        data = re.sub('%s\.\w+\.in' % o, '%s.in' % o, data)
+        data = re.sub('%s\.\w+\.out' % o, '%s.out' % o, data)
+
+    data = re.sub('smb_raw_open\s*\(', 'smb2_create(', data)
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
