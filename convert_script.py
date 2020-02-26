@@ -8,7 +8,7 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('struct smbcli_state', 'struct smb2_tree', data)
     data = re.sub('\s*struct smbcli_session_options session_options;', r'', data)
     data = re.sub('struct smbcli_session', 'struct smb2_session', data)
-    data = re.sub('\s*lpcfg_smbcli_session_options\(torture->lp_ctx, &session_options\);', r'', data)
+    data = re.sub('\s*lpcfg_smbcli_session_options\(\w+->lp_ctx, &\w+\);', r'', data)
     torture = re.findall('struct torture_context \*([^\);,]+)', data)
     if len(torture) == 0:
         torture = re.findall('torture_setting_string\(([^,]+),', data)
