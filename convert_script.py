@@ -71,7 +71,7 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('%s\.\w+\.out' % l, '%s.out' % l, data)
 
     if len(torture) > 0:
-        data = re.sub('torture_setup_dir\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setup_dir(%s, \1, \2)' % torture[0], data)
+        data = re.sub('torture_setup_dir\(([^,]+),\s*([^\)]+)\)', r'smb2_util_setup_dir(%s, \1, \2)' % torture[0], data)
 
     data = data.replace('smbcli_deltree', 'smb2_deltree')
     data = data.replace('smbcli_close', 'smb2_util_close')
