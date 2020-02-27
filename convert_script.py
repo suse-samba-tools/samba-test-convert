@@ -119,6 +119,25 @@ with open(sys.argv[1], 'r') as f:
 
     data = data.replace('smbcli_tree', 'smb2_tree')
 
+    close = re.findall('union\s+smb_close\s+([^,;\)]+)', data)
+    for c in close:
+        # Erase the close union
+        data = re.sub('\s*union\s+smb_close\s+%s.*' % c, '', data)
+
+        # Erase the level
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % c, '', data)
+
+        # Replace the fnum and smb_raw_close lines with a single smb2_util_close
+        data = re.sub('%s\.close\.in\.file\.fnum\s*=\s*([^;]+);(\s*%s\.close\.[^;]+;)*\s+(.*)smb_raw_close\(([^,]+),\s*([^\)]+)\)' % (c, c), r'\3smb2_util_close(\4, \1)', data)
+
+        # Erase any remaining close options
+        data = re.sub('\n.*%s\.\w+\.in\.\w+\s*=\s*\w+;' % c, '', data)
+
+    fnums = re.findall('smb2_util_close\([^,]+,\s*([^\)]+)\)', data)
+    for fnum in fnums:
+        # Try to change the fnum int to a handle
+        data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
