@@ -42,8 +42,12 @@ with open(sys.argv[1], 'r') as f:
 
         # Check then erase gensec_settings
         gensec_settings = re.findall('%s.in.gensec_settings\s*=\s*(.*)\;' % s, data)
-        if len(gensec_settings) > 0 and any(['lpcfg_gensec_settings' not in g for g in gensec_settings]):
-            raise Exception('The credentials setting needs to be set in smb2_session_init')
+        for i in range(0, len(gensec_settings)):
+            if 'lpcfg_gensec_settings' not in gensec_settings[i]:
+                rep = re.findall('\s+%s\s*=\s*(.*)\;' % gensec_settings[i], data)
+                if len(rep) == 1 and 'lpcfg_gensec_settings' in rep[0]:
+                    continue
+                raise Exception('The credentials setting needs to be set in smb2_session_init')
         data = re.sub('\s*%s.in.gensec_settings\s*=\s*.*' % s, '', data)
 
         # Replace the smb_composite_sesssetup
