@@ -138,6 +138,17 @@ with open(sys.argv[1], 'r') as f:
         # Try to change the fnum int to a handle
         data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
 
+    tcons = re.findall('union\s+smb_tcon\s+([^,;\)]+)', data)
+    for tcon in tcons:
+        # Erase the tcon union
+        data = re.sub('\s*union\s+smb_tcon\s+%s.*' % tcon, '', data)
+
+        # Erase the tcon level
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % tcon, '', data)
+
+        # Replace tree init/tcon with torture_smb2_tree_connect
+        data = re.sub('(\s*)([^\s]*)\s*=\s*smb2_tree_init\(([^,]+),\s*([^,]+),\s*([^\)]+)\);(\s*%s\.\w+\.in\.[^;]+;)*\s+(.*)\s*=\s*smb_raw_tcon\(([^,]+),\s*([^,]+),\s*([^\)]+)\)' % tcon, r'\1torture_smb2_tree_connect(\4, \3, \4, &\2)', data)
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
