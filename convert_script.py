@@ -188,6 +188,8 @@ with open(sys.argv[1], 'r') as f:
 
     data = data.replace('torture_suite_add_1smb_test', 'torture_suite_add_1smb2_test')
 
+    data = re.sub('\n(\s+)(\w+)\s*=\s*create_complex_file\(([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\n\1smb2_create_complex_file(\4, \3, \5, &\2);', data)
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
