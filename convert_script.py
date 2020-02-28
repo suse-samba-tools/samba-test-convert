@@ -3,6 +3,7 @@ import re, sys
 
 data = ''
 with open(sys.argv[1], 'r') as f:
+    fnums = []
     data = f.read()
     cli = re.findall('struct smbcli_state \*([^,;\)\(]+)[,;\)]', data)
     data = re.sub('struct smbcli_state', 'struct smb2_tree', data)
@@ -132,11 +133,7 @@ with open(sys.argv[1], 'r') as f:
 
         # Erase any remaining close options
         data = re.sub('\n.*%s\.\w+\.in\.\w+\s*=\s*\w+;' % c, '', data)
-
-    fnums = re.findall('smb2_util_close\([^,]+,\s*([^\)]+)\)', data)
-    for fnum in fnums:
-        # Try to change the fnum int to a handle
-        data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
+    fnums.extend(re.findall('smb2_util_close\([^,]+,\s*([^\)]+)\)', data))
 
     tcons = re.findall('union\s+smb_tcon\s+([^,;\)]+)', data)
     for tcon in tcons:
@@ -148,6 +145,19 @@ with open(sys.argv[1], 'r') as f:
 
         # Replace tree init/tcon with torture_smb2_tree_connect
         data = re.sub('(\s*)([^\s]*)\s*=\s*smb2_tree_init\(([^,]+),\s*([^,]+),\s*([^\)]+)\);(\s*%s\.\w+\.in\.[^;]+;)*\s+(.*)\s*=\s*smb_raw_tcon\(([^,]+),\s*([^,]+),\s*([^\)]+)\)' % tcon, r'\1torture_smb2_tree_connect(\4, \3, \4, &\2)', data)
+
+    for fnum in fnums:
+        # Try to change the fnum int to a handle
+        data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
+
+        # Search for multiple int defs with our handle in it
+        defs = re.findall('(int\s*[^;]*[^\w]%s[^;]*;)' % fnum, data)
+        for d in defs:
+            # Make sure we didn't match on a name that's a sub-string
+            if len(re.findall(r'[^\w]%s[,;]' % fnum, d)) != 1:
+                break
+            n = re.sub('(\s+%s,?)' % fnum, '', d).replace(',;', ';')
+            data = re.sub('\n(\s+)%s' % d, r'\n\1%s\n\1struct smb2_handle %s = {0};' % (n, fnum), data)
 
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
