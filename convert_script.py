@@ -144,7 +144,7 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % tcon, '', data)
 
         # Replace tree init/tcon with torture_smb2_tree_connect
-        data = re.sub('(\s*)([^\s]*)\s*=\s*smb2_tree_init\(([^,]+),\s*([^,]+),\s*([^\)]+)\);(\s*%s\.\w+\.in\.[^;]+;)*\s+(.*)\s*=\s*smb_raw_tcon\(([^,]+),\s*([^,]+),\s*([^\)]+)\)' % tcon, r'\1BOOL_RET = torture_smb2_tree_connect(\4, \3, \4, &\2)', data)
+        data = re.sub('(\s*)([^\s]*)\s*=\s*smb2_tree_init\(([^,]+),\s*([^,]+),\s*([^\)]+)\);(\s*%s\.\w+\.in\.[^;]+;)*\s+([^\s]*)\s*=\s*smb_raw_tcon\(([^,]+),\s*([^,]+),\s*([^\)]+)\)' % tcon, r'\1\7 = torture_smb2_tree_connect(\4, \3, \4, &\2)', data)
 
     writes = re.findall('union\s+smb_write\s+([^,;\)]+)', data)
     for w in writes:
