@@ -5,6 +5,8 @@ data = ''
 with open(sys.argv[1], 'r') as f:
     fnums = []
     data = f.read()
+    if 'smb_raw_exit' in data:
+        sys.stderr.write('WARNING: smb_raw_exit() was deprecated in lanman1, and has no smb2 equivalent.\n')
     cli = re.findall('struct smbcli_state \*([^,;\)\(]+)[,;\)]', data)
     data = re.sub('struct smbcli_state', 'struct smb2_tree', data)
     data = re.sub('\s*struct smbcli_session_options\s*.*;', r'', data)
