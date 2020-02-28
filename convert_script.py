@@ -146,6 +146,28 @@ with open(sys.argv[1], 'r') as f:
         # Replace tree init/tcon with torture_smb2_tree_connect
         data = re.sub('(\s*)([^\s]*)\s*=\s*smb2_tree_init\(([^,]+),\s*([^,]+),\s*([^\)]+)\);(\s*%s\.\w+\.in\.[^;]+;)*\s+(.*)\s*=\s*smb_raw_tcon\(([^,]+),\s*([^,]+),\s*([^\)]+)\)' % tcon, r'\1torture_smb2_tree_connect(\4, \3, \4, &\2)', data)
 
+    writes = re.findall('union\s+smb_write\s+([^,;\)]+)', data)
+    for w in writes:
+        # Catch the file handles
+        fnums.extend(re.findall('%s\.\w+\.in\.file\.fnum\s*=\s*([^;]+)', data))
+
+        # Rewrite the smb_write to smb2_write
+        data = re.sub('union\s+smb_write\s+%s' % w, 'struct smb2_write %s' % w, data)
+
+        # Rewrite the write options
+        data = re.sub('%s\.\w+\.in\.file\.fnum' % w, '%s.in.file.handle' % w, data)
+        data = re.sub('%s\.\w+\.in\.data' % w, '%s.in.data' % w, data)
+        data = re.sub('%s\.\w+\.in\.offset' % w, '%s.in.offset' % w, data)
+
+        # Erase the smb_write level
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % w, '', data)
+
+        # Erase the deprecated options
+        data = re.sub('\n.*%s\.\w+\.in\.\w+\s*=\s*\w+;' % w, '', data)
+
+        # Rewrite the smb_raw_write to a smb2_write
+        data = data.replace('smb_raw_write', 'smb2_write')
+
     for fnum in fnums:
         # Try to change the fnum int to a handle
         data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
@@ -158,6 +180,9 @@ with open(sys.argv[1], 'r') as f:
                 break
             n = re.sub('(\s+%s,?)' % fnum, '', d).replace(',;', ';')
             data = re.sub('\n(\s+)%s' % d, r'\n\1%s\n\1struct smb2_handle %s = {0};' % (n, fnum), data)
+
+    # Rewrite out fnums to handles
+    data = data.replace('out.file.fnum', 'out.file.handle')
 
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
