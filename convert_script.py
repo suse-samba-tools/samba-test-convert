@@ -184,6 +184,8 @@ with open(sys.argv[1], 'r') as f:
     # Rewrite out fnums to handles
     data = data.replace('out.file.fnum', 'out.file.handle')
 
+    data = data.replace('torture_suite_add_1smb_test', 'torture_suite_add_1smb2_test')
+
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
         data = re.sub('%s->transport' % c, '%s->session->transport' % t, data)
