@@ -7,6 +7,8 @@ with open(sys.argv[1], 'r') as f:
     data = f.read()
     if 'smb_raw_exit' in data:
         sys.stderr.write('WARNING: smb_raw_exit() was deprecated in lanman1, and has no smb2 equivalent.\n')
+    if 'smb_raw_pathinfo' in data:
+        sys.stderr.write('WARNING: smb_raw_pathinfo() has no equivalent in smb2, try using smb2_getinfo_fs with a smb2_handle instead\n')
     cli = re.findall('struct smbcli_state \*([^,;\)\(]+)[,;\)]', data)
     data = re.sub('struct smbcli_state', 'struct smb2_tree', data)
     data = re.sub('\s*struct smbcli_session_options\s*.*;', r'', data)
@@ -118,7 +120,7 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('\n.*%s[^;]*;' % e, '', data)
 
     # Replace smbcli_nt_create_full with smb2_create
-    data = re.sub('(\n\s*)(.*)smbcli_nt_create_full\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\1struct smb2_create io;\n\1io.in.fname = \4;\1io.in.create_flags = \5;\1io.in.desired_access = \6;\1io.in.file_attributes = \7;\1io.in.share_access = \8;\1io.in.create_disposition = \9;\1io.in.create_options = \10;\1io.in.security_flags = \11;\1smb2_create(\3, \3, &io);\n\1\2io.out.file.handle;', data)
+    data = re.sub('(\n\s*)(.*)smbcli_nt_create_full\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\1struct smb2_create io;\n\1io.in.fname = \4;\1io.in.create_flags = \5;\1io.in.desired_access = \6;\1io.in.file_attributes = \7;\1io.in.share_access = \8;\1io.in.create_disposition = \9;\1io.in.create_options = \10;\1io.in.security_flags = \11;\1status = smb2_create(\3, \3, &io);\n\1\2io.out.file.handle;', data)
 
     data = data.replace('smbcli_tree', 'smb2_tree')
 
@@ -170,9 +172,13 @@ with open(sys.argv[1], 'r') as f:
         # Rewrite the smb_raw_write to a smb2_write
         data = data.replace('smb_raw_write', 'smb2_write')
 
+    fnums.extend(re.findall('in.file.fnum\s+=\s+([^;]+);', data))
     for fnum in fnums:
         # Try to change the fnum int to a handle
         data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
+
+        # Change function arg fnums
+        data = re.sub('int\s+%s\s*,' % fnum, 'struct smb2_handle %s,' % fnum, data)
 
         # Search for multiple int defs with our handle in it
         defs = re.findall('(int\s*[^;]*[^\w]%s[^;]*;)' % fnum, data)
@@ -185,10 +191,21 @@ with open(sys.argv[1], 'r') as f:
 
     # Rewrite out fnums to handles
     data = data.replace('out.file.fnum', 'out.file.handle')
+    data = data.replace('in.file.fnum', 'in.file.handle')
 
     data = data.replace('torture_suite_add_1smb_test', 'torture_suite_add_1smb2_test')
 
-    data = re.sub('\n(\s+)(\w+)\s*=\s*create_complex_file\(([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\n\1smb2_create_complex_file(\4, \3, \5, &\2);', data)
+    data = re.sub('\n(\s+)(\w+)\s*=\s*create_complex_file\(([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\n\1status = smb2_create_complex_file(\4, \3, \5, &\2);', data)
+
+    data = data.replace('smb_raw_fileinfo', 'smb2_getinfo_file')
+
+    data = re.sub('(\w+->session->transport)->negotiate.capabilities', r'smb2cli_conn_server_capabilities(\1->conn)', data)
+    data = re.sub('smbcli_errstr\([\w\-\>]+\)', r'nt_errstr(status)', data)
+
+    for fnum in fnums:
+        # Change the fnum checks to status checks
+        data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
+        data = re.sub('\(\s*%s\s*!=\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_OK(status))', data)
 
     for c in cli:
         t = re.sub('([a-zA-Z]+)', 'tree', c)
