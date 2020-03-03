@@ -175,7 +175,7 @@ with open(sys.argv[1], 'r') as f:
     fnums.extend(re.findall('in.file.fnum\s+=\s+([^;]+);', data))
     for fnum in fnums:
         # Try to change the fnum int to a handle
-        data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {0};' % fnum, data)
+        data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {{0}};' % fnum, data)
 
         # Change function arg fnums
         data = re.sub('int\s+%s\s*,' % fnum, 'struct smb2_handle %s,' % fnum, data)
@@ -187,7 +187,7 @@ with open(sys.argv[1], 'r') as f:
             if len(re.findall(r'[^\w]%s[,;]' % fnum, d)) != 1:
                 break
             n = re.sub('(\s+%s,?)' % fnum, '', d).replace(',;', ';')
-            data = re.sub('\n(\s+)%s' % d, r'\n\1%s\n\1struct smb2_handle %s = {0};' % (n, fnum), data)
+            data = re.sub('\n(\s+)%s' % d, r'\n\1%s\n\1struct smb2_handle %s = {{0}};' % (n, fnum), data)
 
     # Rewrite out fnums to handles
     data = data.replace('out.file.fnum', 'out.file.handle')
