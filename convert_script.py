@@ -132,6 +132,7 @@ with open(sys.argv[1], 'r') as f:
 
     data = re.sub('smb_raw_open\s*\(', 'smb2_create(', data)
     data = re.sub('smb_raw_open_send\s*\(', 'smb2_create_send(', data)
+    data = re.sub('smb_raw_open_recv\s*\(', 'smb2_create_recv(', data)
     data = re.sub('smb_raw_ulogoff\s*\(', 'smb2_logoff(', data)
     data = re.sub('smbcli_unlink\s*\(', 'smb2_util_unlink(', data)
 
