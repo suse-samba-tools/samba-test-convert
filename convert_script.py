@@ -181,7 +181,7 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('int\s+%s\s*,' % fnum, 'struct smb2_handle %s,' % fnum, data)
 
         # Search for multiple int defs with our handle in it
-        defs = re.findall('(int\s*[^;]*[^\w]%s[^;]*;)' % fnum, data)
+        defs = re.findall('(int\s+[^;]*[^\w]%s[^;]*;)' % fnum, data)
         for d in defs:
             # Make sure we didn't match on a name that's a sub-string
             if len(re.findall(r'[^\w]%s[,;]' % fnum, d)) != 1:
