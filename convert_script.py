@@ -71,9 +71,36 @@ with open(sys.argv[1], 'r') as f:
         # Remove the lock level
         data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % l, '', data)
 
+        # Replace the lockx's with smb2_lock's
+        res = []
+        res.append(re.compile('%s\.lockx\.in\.lock_cnt\s*=\s*(\d+)\s*;\s*%s\.lockx\.in\.ulock_cnt\s*=\s*0\s*;(.+?(?=smb_raw_lock))smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
+        res.append(re.compile('%s\.lockx\.in\.ulock_cnt\s*=\s*0\s*;\s*%s\.lockx\.in\.lock_cnt\s*=\s*(\d+)\s*;(.+?(?=smb_raw_lock))smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
+        for r in res:
+            data = re.sub(r, r'%s.in.lock_count = \1;\2smb2_lock(\3, \4)' % l, data)
+
+        # Replace the lockx's with ulock_cnt > 0 with smb2_break's
+        r = re.compile('(%s\.lockx\.in\.file.fnum\s*=\s*)(\w+);(.+?(?=%s\.lockx\.in\.lock_cnt\s*=\s*0))%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;(.+?(?=\s+\w+\s*=\s*smb_raw_lock))(\s+)(\w+\s*=\s*)smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l, l), re.DOTALL)
+        data = re.sub(r, r'\1\2;\3\4\5struct smb2_break u%s;\5u%s.in.file.handle = \2;\5\6smb2_break(\7, &u%s)' % (l, l, l), data)
+        data = re.sub('\n.*%s\.lockx\.in\.ulock_cnt\s*=\s*\d+\s*;' % l, '', data)
+
+        # Erase timeout/mode
+        data = re.sub('\n.*%s\.lockx\.in\.timeout\s*=\s*\d+\s*;' % l, '', data)
+        data = re.sub('\n.*%s\.lockx\.in\.mode\s*=\s*\d+\s*;' % l, '', data)
+
         # Replace the lock inputs/outputs
         data = re.sub('%s\.\w+\.in' % l, '%s.in' % l, data)
         data = re.sub('%s\.\w+\.out' % l, '%s.out' % l, data)
+
+    lock_elements = re.findall('struct\s+smb_lock_entry\s+\*?([^\[;]+)', data)
+    for le in lock_elements:
+        # Rewrite count to length
+        data = re.sub('(\n.*%s\[\d+\])\.count\s*=\s*(\d+)\s*;' % le, r'\1.length = \2;', data)
+
+        # Erase the pid
+        data = re.sub('\n.*%s\[\d+\]\.pid\s*=\s*\d+\s*;' % le, '', data)
+
+    data = data.replace('smb_lock_entry', 'smb2_lock_element')
+    data = data.replace('smb_raw_lock', 'smb2_lock')
 
     if len(torture) > 0:
         data = re.sub('torture_setup_dir\(([^,]+),\s*([^\)]+)\)', r'smb2_util_setup_dir(%s, \1, \2)' % torture[0], data)
