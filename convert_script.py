@@ -158,6 +158,49 @@ with open(sys.argv[1], 'r') as f:
     # Replace smbcli_nt_create_full with smb2_create
     data = re.sub('(\n\s*)(.*)smbcli_nt_create_full\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', r'\1struct smb2_create io;\n\1io.in.fname = \4;\1io.in.create_flags = \5;\1io.in.desired_access = \6;\1io.in.file_attributes = \7;\1io.in.share_access = \8;\1io.in.create_disposition = \9;\1io.in.create_options = \10;\1io.in.security_flags = \11;\1status = smb2_create(\3, \3, &io);\n\1\2io.out.file.handle;', data)
 
+    def conditional_open_replace(m):
+        ans = ''
+        ans += '%sstruct smb2_create cio;' % m.group(1)
+        ans += '%scio.in.fname = %s;' % (m.group(1), m.group(4))
+        o = m.group(5).split('|')
+        access_mask = []
+        create_disposition = 'NTCREATEX_DISP_CREATE'
+        for opt in o:
+            if opt.strip() == 'O_RDWR':
+                access_mask.append('SEC_FILE_READ_DATA')
+                access_mask.append('SEC_FILE_WRITE_DATA')
+            elif opt.strip() == 'O_CREAT':
+                if 'O_EXCL' not in o:
+                    create_disposition = 'NTCREATEX_DISP_OPEN_IF'
+                else:
+                    create_disposition = 'NTCREATEX_DISP_CREATE'
+            elif opt.strip() == 'O_EXCL' and 'O_CREAT' in o:
+                if 'O_CREAT' in o:
+                    create_disposition = 'NTCREATEX_DISP_CREATE'
+                else:
+                    raise Exception('If O_EXCL is set and O_CREAT is not set, the result is undefined.')
+            else:
+                raise Exception('Unknown option "%s"' % opt)
+        ans += '%scio.in.desired_access = %s;' % (m.group(1), ' | '.join(access_mask))
+        ans += '%scio.in.file_attributes = FILE_ATTRIBUTE_NORMAL;' % m.group(1)
+        share_access = None
+        if m.group(6).strip() == 'DENY_NONE':
+            share_access = 'NTCREATEX_SHARE_ACCESS_READ | NTCREATEX_SHARE_ACCESS_WRITE | NTCREATEX_SHARE_ACCESS_DELETE'
+        elif m.group(6).strip() == 'DENY_ALL':
+            share_access = '0'
+        elif m.group(6).strip() == 'DENY_WRITE':
+            share_access = 'NTCREATEX_SHARE_ACCESS_READ | NTCREATEX_SHARE_ACCESS_DELETE'
+        elif m.group(6).strip() == 'DENY_READ':
+            share_access = 'NTCREATEX_SHARE_ACCESS_WRITE | NTCREATEX_SHARE_ACCESS_DELETE'
+        else:
+            raise Exception('Invalid share access "%s"' % m.group(6).strip())
+        ans += '%scio.in.share_access = %s;' % (m.group(1), share_access)
+        ans += '%scio.in.create_disposition = %s;' % (m.group(1), create_disposition)
+        ans += '%sstatus = smb2_create(%s, %s, &cio);' % (m.group(1), m.group(3), m.group(3))
+        return ans
+    # Replace smbcli_open with smb2_create
+    data = re.sub('(\n[ \t\r\f\v]*)(\w+)\s*=\s*smbcli_open\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', conditional_open_replace, data)
+
     data = data.replace('smbcli_tree', 'smb2_tree')
 
     close = re.findall('union\s+smb_close\s+([^,;\)]+)', data)
