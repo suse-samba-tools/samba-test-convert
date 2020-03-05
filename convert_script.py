@@ -87,7 +87,7 @@ with open(sys.argv[1], 'r') as f:
         res.append(re.compile('%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;\s*%s\.lockx\.in\.ulock_cnt\s*=\s*(\d+)\s*;(.+?(?=\n\s+\w+\s*=\s*smb_raw_lock))\n(\s+)(\w+)\s*=\s*smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
         res.append(re.compile('%s\.lockx\.in\.ulock_cnt\s*=\s*(\d+)\s*;\s*%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;(.+?(?=\n\s+\w+\s*=\s*smb_raw_lock))\n(\s+)(\w+)\s*=\s*smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
         for r in res:
-            data = re.sub(r, r'%s.flags = SMB2_LOCK_FLAG_UNLOCK;\n\3%s.in.lock_count = \1;\2\n\3\4 = smb2_lock(\5, \6)' % (rlocks[0], l), data)
+            data = re.sub(r, r'%s.flags = SMB2_LOCK_FLAG_UNLOCK;\n\3%s.in.lock_count = \1;\2\n\3\4 = smb2_lock(\5, \6);\n\3%s.flags = 0' % (rlocks[0], l, rlocks[0]), data)
 
         # Erase timeout/mode
         data = re.sub('\n.*%s\.lockx\.in\.timeout\s*=\s*\d+\s*;' % l, '', data)
