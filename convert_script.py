@@ -107,6 +107,8 @@ with open(sys.argv[1], 'r') as f:
 
     data = data.replace('smb_lock_entry', 'smb2_lock_element')
     data = data.replace('smb_raw_lock', 'smb2_lock')
+    data = data.replace('smbcli_unlock', 'smb2_util_unlock')
+    data = re.sub('smbcli_lock\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_lock(\1, \2, \3, \4, \6==WRITE_LOCK)', data) # Dumb hack, compare the lock type to WRITE_LOCK to see if we're requesting an exclusive lock
 
     if len(torture) > 0:
         data = re.sub('torture_setup_dir\(([^,]+),\s*([^\)]+)\)', r'smb2_util_setup_dir(%s, \1, \2)' % torture[0], data)
