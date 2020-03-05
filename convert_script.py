@@ -281,6 +281,8 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('(\w+->session->transport)->negotiate.capabilities', r'smb2cli_conn_server_capabilities(\1->conn)', data)
     data = re.sub('smbcli_errstr\([\w\-\>]+\)', r'nt_errstr(status)', data)
 
+    data = re.sub('(\n[ \t\r\f\v]*)(\w+)\s*=\s*smbcli_request_simple_recv\(([^\)]+)\);', r'\1smb2_request_receive(\3);\1\2 = smb2_request_destroy(\3);', data)
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
