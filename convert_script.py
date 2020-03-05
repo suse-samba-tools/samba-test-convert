@@ -78,10 +78,16 @@ with open(sys.argv[1], 'r') as f:
         for r in res:
             data = re.sub(r, r'%s.in.lock_count = \1;\2smb2_lock(\3, \4)' % l, data)
 
-        # Replace the lockx's with ulock_cnt > 0 with smb2_break's
-        r = re.compile('(%s\.lockx\.in\.file.fnum\s*=\s*)(\w+);(.+?(?=%s\.lockx\.in\.lock_cnt\s*=\s*0))%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;(.+?(?=\s+\w+\s*=\s*smb_raw_lock))(\s+)(\w+\s*=\s*)smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l, l), re.DOTALL)
-        data = re.sub(r, r'\1\2;\3\4\5struct smb2_break u%s;\5u%s.in.file.handle = \2;\5\6smb2_break(\7, &u%s)' % (l, l, l), data)
-        data = re.sub('\n.*%s\.lockx\.in\.ulock_cnt\s*=\s*\d+\s*;' % l, '', data)
+        # Replace the lockx's with smb2_lock's + SMB2_LOCK_FLAG_UNLOCK flag
+        r = re.compile('%s\.lockx\.in\.locks\s*=\s*[\*&]?([^;]+)' % l)
+        rlocks = re.findall(r, data)
+        if len(rlocks) != 1 and not all(e == rlocks[0] for e in rlocks):
+            raise Exception('Failed to find the lock for %s' % l)
+        res = []
+        res.append(re.compile('%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;\s*%s\.lockx\.in\.ulock_cnt\s*=\s*(\d+)\s*;(.+?(?=\n\s+\w+\s*=\s*smb_raw_lock))\n(\s+)(\w+)\s*=\s*smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
+        res.append(re.compile('%s\.lockx\.in\.ulock_cnt\s*=\s*(\d+)\s*;\s*%s\.lockx\.in\.lock_cnt\s*=\s*0\s*;(.+?(?=\n\s+\w+\s*=\s*smb_raw_lock))\n(\s+)(\w+)\s*=\s*smb_raw_lock\(([^,]+),\s*([^\)]+)\)' % (l, l), re.DOTALL))
+        for r in res:
+            data = re.sub(r, r'%s.flags = SMB2_LOCK_FLAG_UNLOCK;\n\3%s.in.lock_count = \1;\2\n\3\4 = smb2_lock(\5, \6)' % (rlocks[0], l), data)
 
         # Erase timeout/mode
         data = re.sub('\n.*%s\.lockx\.in\.timeout\s*=\s*\d+\s*;' % l, '', data)
