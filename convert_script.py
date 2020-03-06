@@ -284,6 +284,11 @@ with open(sys.argv[1], 'r') as f:
 
     data = re.sub('(\n[ \t\r\f\v]*)(\w+)\s*=\s*smbcli_request_simple_recv\(([^\)]+)\);', r'\1smb2_request_receive(\3);\1\2 = smb2_request_destroy(\3);', data)
 
+    # Rewrite raw includes
+    data = data.replace('#include "libcli/raw/libcliraw.h"', '#include "libcli/smb2/smb2.h"')
+    data = data.replace('#include "libcli/raw/raw_proto.h"', '#include "libcli/smb2/smb2_calls.h"')
+    data = data.replace('#include "torture/raw/proto.h"', '#include "torture/smb2/proto.h"')
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
