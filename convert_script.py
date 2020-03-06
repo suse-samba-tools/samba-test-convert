@@ -197,10 +197,10 @@ with open(sys.argv[1], 'r') as f:
         ans += '%scio.in.share_access = %s;' % (m.group(1), share_access)
         ans += '%scio.in.create_disposition = %s;' % (m.group(1), create_disposition)
         ans += '%sstatus = smb2_create(%s, %s, &cio);' % (m.group(1), m.group(3), m.group(3))
-        ans += '%s%s = cio.out.file.handle;' % (m.group(1), m.group(2))
+        ans += '%s%scio.out.file.handle;' % (m.group(1), m.group(2))
         return ans
     # Replace smbcli_open with smb2_create
-    data = re.sub('(\n[ \t\r\f\v]*)(\w+)\s*=\s*smbcli_open\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', conditional_open_replace, data)
+    data = re.sub('(\n[ \t\r\f\v]*)([\w= ]*)smbcli_open\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', conditional_open_replace, data)
 
     data = data.replace('smbcli_tree', 'smb2_tree')
 
@@ -288,6 +288,8 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('#include "libcli/raw/libcliraw.h"', '#include "libcli/smb2/smb2.h"')
     data = data.replace('#include "libcli/raw/raw_proto.h"', '#include "libcli/smb2/smb2_calls.h"')
     data = data.replace('#include "torture/raw/proto.h"', '#include "torture/smb2/proto.h"')
+
+    data = data.replace('smbcli_mkdir', 'smb2_util_mkdir')
 
     for fnum in fnums:
         # Change the fnum checks to status checks
