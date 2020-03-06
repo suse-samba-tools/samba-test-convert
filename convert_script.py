@@ -94,8 +94,8 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('\n.*%s\.lockx\.in\.mode\s*=\s*\d+\s*;' % l, '', data)
 
         # Replace the lock inputs/outputs
-        data = re.sub('%s\.\w+\.in' % l, '%s.in' % l, data)
-        data = re.sub('%s\.\w+\.out' % l, '%s.out' % l, data)
+        data = re.sub('%s\.lockx\.in' % l, '%s.in' % l, data)
+        data = re.sub('%s\.lockx\.out' % l, '%s.out' % l, data)
 
     lock_elements = re.findall('struct\s+smb_lock_entry\s+\*?([^\[;]+)', data)
     for le in lock_elements:
@@ -135,8 +135,8 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('%s\.ntcreatex\.in\.impersonation' % o, '%s.in.impersonation_level' % o, data)
 
         # Replace the open inputs/outputs
-        data = re.sub('%s\.\w+\.in' % o, '%s.in' % o, data)
-        data = re.sub('%s\.\w+\.out' % o, '%s.out' % o, data)
+        data = re.sub('%s\.ntcreatex\.in' % o, '%s.in' % o, data)
+        data = re.sub('%s\.ntcreatex\.out' % o, '%s.out' % o, data)
 
     data = re.sub('smb_raw_open\s*\(', 'smb2_create(', data)
     data = re.sub('smb_raw_open_send\s*\(', 'smb2_create_send(', data)
