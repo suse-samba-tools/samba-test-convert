@@ -160,7 +160,7 @@ with open(sys.argv[1], 'r') as f:
 
     def conditional_open_replace(m):
         ans = ''
-        ans += '%sstruct smb2_create cio;' % m.group(1)
+        ans += '%sstruct smb2_create cio = {0};' % m.group(1)
         ans += '%scio.in.fname = %s;' % (m.group(1), m.group(4))
         o = m.group(5).split('|')
         access_mask = []
@@ -290,6 +290,25 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('#include "torture/raw/proto.h"', '#include "torture/smb2/proto.h"')
 
     data = data.replace('smbcli_mkdir', 'smb2_util_mkdir')
+
+    firsts = re.findall('union\s+smb_search_first\s+(\w+);', data)
+    nexts = re.findall('union\s+smb_search_next\s+(\w+);', data)
+    for f in firsts:
+        # Erase the level
+        data = re.sub('\n.*%s\.t2ffirst\.level\s*=\s*\w+;' % f, '', data)
+
+        data = re.sub('%s\.t2ffirst\.in' % f, '%s.in' % f, data)
+        data = re.sub('%s\.t2ffirst\.out' % f, '%s.out' % f, data)
+
+    for n in nexts:
+        # Erase the level
+        data = re.sub('\n.*%s\.t2fnext\.level\s*=\s*\w+;' % n, '', data)
+
+        data = re.sub('%s\.t2fnext\.in' % n, '%s.in' % n, data)
+        data = re.sub('%s\.t2fnext\.out' % n, '%s.out' % n, data)
+
+    data = re.sub('union\s+smb_search_first', 'struct smb2_find', data)
+    data = re.sub('union\s+smb_search_next', 'struct smb2_find', data)
 
     for fnum in fnums:
         # Change the fnum checks to status checks
