@@ -310,6 +310,8 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('union\s+smb_search_first', 'struct smb2_find', data)
     data = re.sub('union\s+smb_search_next', 'struct smb2_find', data)
 
+    data = data.replace('smb_raw_fsinfo', 'smb2_getinfo_fs')
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
