@@ -317,6 +317,11 @@ with open(sys.argv[1], 'r') as f:
 
     data = re.sub('(\n[ \t\f\v]*)(.+?(?=smbcli_read))smbcli_read\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)([^;]*)', r'\1struct smb2_read rio = {0};\1rio.in.file.handle = \4;\1rio.in.offset = \6;\1rio.in.length = \7;\1status = smb2_read(\3, %s, &rio);\1\2rio.out.data.length\8;\1\5 = rio.out.data.data' % (torture[0] if len(torture) > 0 else '\\3'), data, re.DOTALL)
 
+    if len(torture) > 0:
+        data = re.sub('torture_open_connection\(([^,]+),\s*([^\)]+)\)', r'torture_smb2_connection(%s, \1)' % torture[0], data)
+    else:
+        sys.write.stderr('Couldn\'t convert torture_open_connection because no torture context was found\n')
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
