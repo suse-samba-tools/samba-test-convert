@@ -288,6 +288,7 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('#include "libcli/raw/libcliraw.h"', '#include "libcli/smb2/smb2.h"')
     data = data.replace('#include "libcli/raw/raw_proto.h"', '#include "libcli/smb2/smb2_calls.h"')
     data = data.replace('#include "torture/raw/proto.h"', '#include "torture/smb2/proto.h"')
+    data = data.replace('#include "torture/basic/proto.h"', '#include "torture/smb2/proto.h"')
 
     data = data.replace('smbcli_mkdir', 'smb2_util_mkdir')
 
@@ -313,6 +314,8 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('smb_raw_fsinfo', 'smb2_getinfo_fs')
 
     data = re.sub('smbcli_write\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_write(\1, \2, \4, \5, \6)', data)
+
+    data = re.sub('(\n[ \t\f\v]*)(.+?(?=smbcli_read))smbcli_read\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)([^;]*)', r'\1struct smb2_read rio = {0};\1rio.in.file.handle = \4;\1rio.in.offset = \6;\1rio.in.length = \7;\1status = smb2_read(\3, %s, &rio);\1\2rio.out.data.length\8;\1\5 = rio.out.data.data' % (torture[0] if len(torture) > 0 else '\\3'), data, re.DOTALL)
 
     for fnum in fnums:
         # Change the fnum checks to status checks
