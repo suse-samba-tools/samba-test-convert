@@ -326,6 +326,12 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('smb_raw_changenotify_send', 'smb2_notify_send')
     data = data.replace('smb_raw_changenotify_recv', 'smb2_notify_recv')
 
+    data = data.replace('smbcli_rmdir', 'smb2_util_rmdir')
+
+    data = re.sub('smbcli_setatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setatr(\1, \2, \3)', data)
+
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_rename))smbcli_rename\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1struct smb2_handle rh = {{0}};\1union smb_setfileinfo rsinfo = {0};\1torture_smb2_testfile(\3, \4, &rh);\1rsinfo.rename_information.level = RAW_SFILEINFO_RENAME_INFORMATION;\1rsinfo.rename_information.in.file.handle = rh;\1rsinfo.rename_information.in.new_name = \5;\1\2smb2_setinfo_file(\3, &rsinfo)', data, re.DOTALL)
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
