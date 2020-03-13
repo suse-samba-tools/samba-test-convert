@@ -217,7 +217,7 @@ with open(sys.argv[1], 'r') as f:
 
         # Erase any remaining close options
         data = re.sub('\n.*%s\.\w+\.in\.\w+\s*=\s*\w+;' % c, '', data)
-    fnums.extend(re.findall('smb2_util_close\([^,]+,\s*([^\)]+)\)', data))
+    fnums.extend(re.findall('smb2_util_close\([^,]+,\s*([^\)\(]+)\)', data))
 
     tcons = re.findall('union\s+smb_tcon\s+([^,;\)]+)', data)
     for tcon in tcons:
