@@ -322,6 +322,10 @@ with open(sys.argv[1], 'r') as f:
     else:
         sys.write.stderr('Couldn\'t convert torture_open_connection because no torture context was found\n')
 
+    data = re.sub('union\s+smb_notify', 'struct smb2_notify', data)
+    data = data.replace('smb_raw_changenotify_send', 'smb2_notify_send')
+    data = data.replace('smb_raw_changenotify_recv', 'smb2_notify_recv')
+
     for fnum in fnums:
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
