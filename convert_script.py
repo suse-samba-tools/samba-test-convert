@@ -192,15 +192,18 @@ with open(sys.argv[1], 'r') as f:
             share_access = 'NTCREATEX_SHARE_ACCESS_READ | NTCREATEX_SHARE_ACCESS_DELETE'
         elif m.group(6).strip() == 'DENY_READ':
             share_access = 'NTCREATEX_SHARE_ACCESS_WRITE | NTCREATEX_SHARE_ACCESS_DELETE'
+        elif m.group(6).strip() == '0':
+            share_access = None
         else:
             raise Exception('Invalid share access "%s"' % m.group(6).strip())
-        ans += '%scio.in.share_access = %s;' % (m.group(1), share_access)
+        if share_access:
+            ans += '%scio.in.share_access = %s;' % (m.group(1), share_access)
         ans += '%scio.in.create_disposition = %s;' % (m.group(1), create_disposition)
         ans += '%sstatus = smb2_create(%s, %s, &cio);' % (m.group(1), m.group(3), m.group(3))
-        ans += '%s%scio.out.file.handle;' % (m.group(1), m.group(2))
+        ans += '%s%scio.out.file.handle' % (m.group(1), m.group(2))
         return ans
     # Replace smbcli_open with smb2_create
-    data = re.sub('(\n[ \t\r\f\v]*)([\w= ]*)smbcli_open\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\);', conditional_open_replace, data)
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_open))smbcli_open\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', conditional_open_replace, data)
 
     data = data.replace('smbcli_tree', 'smb2_tree')
 
@@ -331,6 +334,7 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('smbcli_setatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setatr(\1, \2, \3)', data)
 
     data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_rename))smbcli_rename\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1struct smb2_handle rh = {{0}};\1union smb_setfileinfo rsinfo = {0};\1torture_smb2_testfile(\3, \4, &rh);\1rsinfo.rename_information.level = RAW_SFILEINFO_RENAME_INFORMATION;\1rsinfo.rename_information.in.file.handle = rh;\1rsinfo.rename_information.in.new_name = \5;\1\2smb2_setinfo_file(\3, &rsinfo)', data, re.DOTALL)
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_fsetatr))smbcli_fsetatr\(([^,]+),s*([^,]+),s*([^,]+),s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.basic_info.level = RAW_SFILEINFO_BASIC_INFO;\1sinfo.basic_info.in.file.handle = \4;\1sinfo.basic_info.in.attrib = \5;\1sinfo.basic_info.in.create_time = \6;\1sinfo.basic_info.in.access_time = \7;\1sinfo.basic_info.in.write_time = \8;\1sinfo.basic_info.in.change_time = \9;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
 
     for fnum in fnums:
         # Change the fnum checks to status checks
