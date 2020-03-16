@@ -334,7 +334,15 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('smbcli_setatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setatr(\1, \2, \3)', data)
 
     data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_rename))smbcli_rename\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1struct smb2_handle rh = {{0}};\1union smb_setfileinfo rsinfo = {0};\1torture_smb2_testfile(\3, \4, &rh);\1rsinfo.rename_information.level = RAW_SFILEINFO_RENAME_INFORMATION;\1rsinfo.rename_information.in.file.handle = rh;\1rsinfo.rename_information.in.new_name = \5;\1\2smb2_setinfo_file(\3, &rsinfo)', data, re.DOTALL)
-    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_fsetatr))smbcli_fsetatr\(([^,]+),s*([^,]+),s*([^,]+),s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.basic_info.level = RAW_SFILEINFO_BASIC_INFO;\1sinfo.basic_info.in.file.handle = \4;\1sinfo.basic_info.in.attrib = \5;\1sinfo.basic_info.in.create_time = \6;\1sinfo.basic_info.in.access_time = \7;\1sinfo.basic_info.in.write_time = \8;\1sinfo.basic_info.in.change_time = \9;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_fsetatr))smbcli_fsetatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.basic_info.level = RAW_SFILEINFO_BASIC_INFO;\1sinfo.basic_info.in.file.handle = \4;\1sinfo.basic_info.in.attrib = \5;\1sinfo.basic_info.in.create_time = \6;\1sinfo.basic_info.in.access_time = \7;\1sinfo.basic_info.in.write_time = \8;\1sinfo.basic_info.in.change_time = \9;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_ftruncate))smbcli_ftruncate\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.end_of_file_info.level = RAW_SFILEINFO_END_OF_FILE_INFO;\1sinfo.end_of_file_info.in.file.handle = \4;\1sinfo.end_of_file_info.in.size = \5;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
+
+    data = data.replace('smbcli_getatr', 'smb2_util_getatr')
+    data = data.replace('smbcli_transport_dead', 'smb2_transport_dead')
+    data = data.replace('smbcli_transport_idle_handler', 'smb2_transport_idle_handler')
+    data = re.sub('struct\s+smbcli_transport', 'struct smb2_transport', data)
+
+    data = re.sub('smb_raw_ntcancel\(([^\)]+)\)', r'tevent_req_cancel(\1->subreq)', data)
 
     for fnum in fnums:
         # Change the fnum checks to status checks
