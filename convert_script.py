@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-import re, sys
+import re, sys, argparse
 
-data = ''
-with open(sys.argv[1], 'r') as f:
+def convert_data(f, test_suite_name):
+    data = ''
     fnums = []
     data = f.read()
     if 'smb_raw_exit' in data:
@@ -354,7 +354,12 @@ with open(sys.argv[1], 'r') as f:
     data = re.sub('smb_raw_ntcancel\(([^\)]+)\)', r'tevent_req_cancel(\1->subreq)', data)
 
     data = data.replace('torture_suite_add_2smb_test', 'torture_suite_add_2smb2_test')
-    data = re.sub('struct\s+torture_suite\s+\*torture_[a-zA-Z0-9]+(_[a-zA-Z0-9]+)\(TALLOC_CTX (\*\w+)\)', r'struct torture_suite *torture_smb2\1(TALLOC_CTX \2)', data)
+    name_match = re.compile('struct\s+torture_suite\s+\*torture_[a-zA-Z0-9]+(_[a-zA-Z0-9]+)\(TALLOC_CTX (\*\w+)\)')
+    if test_suite_name:
+        data = re.sub(name_match, r'struct torture_suite *torture_smb2_%s(TALLOC_CTX \2)' % test_suite_name, data)
+        data = re.sub('torture_suite_create\((\w+),\s+"\w+"\)', r'torture_suite_create(\1, "%s")' % test_suite_name, data)
+    else:
+        data = re.sub(name_match, r'struct torture_suite *torture_smb2\1(TALLOC_CTX \2)', data)
 
     if 'wire_bad_flags' in data:
         # Insert the static wire_bad_smb2_flags def
@@ -375,5 +380,18 @@ with open(sys.argv[1], 'r') as f:
         data = re.sub('%s->tree' % c, t, data)
         data = re.sub('([^\w]+)(%s)([^\w]+)' % c, r'\1%s\3' % t, data)
 
-with open(sys.argv[1], 'w') as f:
-    f.write(data)
+    return data
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Simple script for converting samba's smb1 torture tests to smb2")
+
+    parser.add_argument('file')
+    parser.add_argument('--test-suite-name', help='Alternate name for the test suite')
+
+    args = parser.parse_args()
+
+    data = ''
+    with open(args.file, 'r') as f:
+        data = convert_data(f, args.test_suite_name)
+    with open(args.file, 'w') as f:
+        f.write(data)
