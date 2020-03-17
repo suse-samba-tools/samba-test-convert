@@ -120,6 +120,7 @@ def convert_data(f, test_suite_name):
     for o in sopen:
         # Replace the definition
         data = re.sub('union\s+smb_open', 'struct smb2_create', data)
+        data = re.sub('struct\s+smb2_create\s+(\w+);', r'struct smb2_create \1 = {0};', data)
 
         # Remove the open level
         data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % o, '', data)
@@ -345,7 +346,7 @@ def convert_data(f, test_suite_name):
 
     data = re.sub('smbcli_setatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'smb2_util_setatr(\1, \2, \3)', data)
 
-    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_rename))smbcli_rename\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1struct smb2_handle rh = {{0}};\1union smb_setfileinfo rsinfo = {0};\1torture_smb2_testfile(\3, \4, &rh);\1rsinfo.rename_information.level = RAW_SFILEINFO_RENAME_INFORMATION;\1rsinfo.rename_information.in.file.handle = rh;\1rsinfo.rename_information.in.new_name = \5;\1\2smb2_setinfo_file(\3, &rsinfo)', data, re.DOTALL)
+    data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_rename))smbcli_rename\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1struct smb2_handle rh = {{0}};\1union smb_setfileinfo rsinfo = {0};\1torture_smb2_testfile(\3, \4, &rh);\1rsinfo.rename_information.level = RAW_SFILEINFO_RENAME_INFORMATION;\1rsinfo.rename_information.in.file.handle = rh;\1rsinfo.rename_information.in.new_name = \5;\1\2smb2_setinfo_file(\3, &rsinfo);\1smb2_util_close(\3, rh)', data, re.DOTALL)
     data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_fsetatr))smbcli_fsetatr\(([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.basic_info.level = RAW_SFILEINFO_BASIC_INFO;\1sinfo.basic_info.in.file.handle = \4;\1sinfo.basic_info.in.attrib = \5;\1sinfo.basic_info.in.create_time = \6;\1sinfo.basic_info.in.access_time = \7;\1sinfo.basic_info.in.write_time = \8;\1sinfo.basic_info.in.change_time = \9;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
     data = re.sub('(\n[ \t\f\v]*)(.*?(?=smbcli_ftruncate))smbcli_ftruncate\(([^,]+),\s*([^,]+),\s*([^\)]+)\)', r'\1union smb_setfileinfo sinfo = {0};\1sinfo.end_of_file_info.level = RAW_SFILEINFO_END_OF_FILE_INFO;\1sinfo.end_of_file_info.in.file.handle = \4;\1sinfo.end_of_file_info.in.size = \5;\1\2smb2_setinfo_file(\3, &sinfo)', data, re.DOTALL)
 
@@ -374,6 +375,9 @@ def convert_data(f, test_suite_name):
 
         # Replace the wire_bad_flags
         data = data.replace('wire_bad_flags', 'wire_bad_smb2_flags')
+
+    # Strip white space at end of the line
+    data = re.sub('[ \t\r\f\v]+\n', r'\n', data)
 
     for fnum in reversed(sorted(fnums)):
         if '.' in fnum:
