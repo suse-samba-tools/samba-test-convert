@@ -376,6 +376,14 @@ def convert_data(f, test_suite_name):
         # Replace the wire_bad_flags
         data = data.replace('wire_bad_flags', 'wire_bad_smb2_flags')
 
+    if 'smb_raw_chkpath' in data:
+        # Insert the static smb2_chkpath def
+        include_end = list(re.finditer('#include\s+.*\n', data))[-1].end()
+        data = data[:include_end] + '\nstatic NTSTATUS smb2_chkpath(struct smb2_tree *tree, union smb_chkpath *parms)\n{\n\tstruct smb2_create io = {0};\n\tNTSTATUS status;\n\n\tio.in.desired_access = SEC_RIGHTS_DIR_ALL;\n\tio.in.file_attributes = FILE_ATTRIBUTE_DIRECTORY;\n\tio.in.create_disposition = NTCREATEX_DISP_OPEN;\n\tio.in.share_access = NTCREATEX_SHARE_ACCESS_READ |\n\t\t\t     NTCREATEX_SHARE_ACCESS_WRITE |\n\t\t\t     NTCREATEX_SHARE_ACCESS_DELETE;\n\tio.in.create_options = NTCREATEX_OPTIONS_DIRECTORY;\n\tio.in.fname = parms->chkpath.in.path;\n\n\tstatus = smb2_create(tree, tree, &io);\n\n\tif (NT_STATUS_IS_OK(status)) {\n\t\tsmb2_util_close(tree, io.out.file.handle);\n\t}\n\t\n\treturn status;\n}\n' + data[include_end:]
+
+        # Replace the smb_raw_chkpath
+        data = data.replace('smb_raw_chkpath', 'smb2_chkpath')
+
     # Strip white space at end of the line
     data = re.sub('[ \t\r\f\v]+\n', r'\n', data)
 
