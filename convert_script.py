@@ -387,6 +387,8 @@ def convert_data(f, test_suite_name):
     # Strip white space at end of the line
     data = re.sub('[ \t\r\f\v]+\n', r'\n', data)
 
+    data = data.replace('smb_tree_disconnect', 'smb2_tdis')
+
     for fnum in reversed(sorted(fnums)):
         if '.' in fnum:
             continue
