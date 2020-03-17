@@ -181,7 +181,8 @@ with open(sys.argv[1], 'r') as f:
                     raise Exception('If O_EXCL is set and O_CREAT is not set, the result is undefined.')
             else:
                 raise Exception('Unknown option "%s"' % opt)
-        ans += '%scio.in.desired_access = %s;' % (m.group(1), ' | '.join(access_mask))
+        if len(access_mask) > 0:
+            ans += '%scio.in.desired_access = %s;' % (m.group(1), ' | '.join(access_mask))
         ans += '%scio.in.file_attributes = FILE_ATTRIBUTE_NORMAL;' % m.group(1)
         share_access = None
         if m.group(6).strip() == 'DENY_NONE':
@@ -256,7 +257,7 @@ with open(sys.argv[1], 'r') as f:
         data = data.replace('smb_raw_write', 'smb2_write')
 
     fnums.extend(re.findall('in.file.fnum\s+=\s+([^;]+);', data))
-    for fnum in fnums:
+    for fnum in reversed(sorted(fnums)):
         # Try to change the fnum int to a handle
         data = re.sub('int\s+%s(\s*=\s*[\-\d]+)*\s*;' % fnum, 'struct smb2_handle %s = {{0}};' % fnum, data)
 
@@ -325,7 +326,15 @@ with open(sys.argv[1], 'r') as f:
     else:
         sys.write.stderr('Couldn\'t convert torture_open_connection because no torture context was found\n')
 
+    notifys = re.findall('union\s+smb_notify\s+(\w+);', data)
+    for n in notifys:
+        # Erase the level
+        data = re.sub('\n.*%s\.\w+\.level\s*=\s*\w+;' % n, '', data)
+
+        data = re.sub('%s\.nttrans\.in' % n, '%s.in' % n, data)
+        data = re.sub('%s\.nttrans\.out' % n, '%s.out' % n, data)
     data = re.sub('union\s+smb_notify', 'struct smb2_notify', data)
+
     data = data.replace('smb_raw_changenotify_send', 'smb2_notify_send')
     data = data.replace('smb_raw_changenotify_recv', 'smb2_notify_recv')
 
@@ -344,7 +353,10 @@ with open(sys.argv[1], 'r') as f:
 
     data = re.sub('smb_raw_ntcancel\(([^\)]+)\)', r'tevent_req_cancel(\1->subreq)', data)
 
-    for fnum in fnums:
+    data = data.replace('torture_suite_add_2smb_test', 'torture_suite_add_2smb2_test')
+    data = re.sub('struct\s+torture_suite\s+\*torture_[a-zA-Z0-9]+(_[a-zA-Z0-9]+)\(TALLOC_CTX (\*\w+)\)', r'struct torture_suite *torture_smb2\1(TALLOC_CTX \2)', data)
+
+    for fnum in reversed(sorted(fnums)):
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
         data = re.sub('\(\s*%s\s*!=\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_OK(status))', data)
