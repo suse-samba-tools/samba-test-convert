@@ -356,6 +356,14 @@ with open(sys.argv[1], 'r') as f:
     data = data.replace('torture_suite_add_2smb_test', 'torture_suite_add_2smb2_test')
     data = re.sub('struct\s+torture_suite\s+\*torture_[a-zA-Z0-9]+(_[a-zA-Z0-9]+)\(TALLOC_CTX (\*\w+)\)', r'struct torture_suite *torture_smb2\1(TALLOC_CTX \2)', data)
 
+    if 'wire_bad_flags' in data:
+        # Insert the static wire_bad_smb2_flags def
+        include_end = list(re.finditer('#include\s+.*\n', data))[-1].end()
+        data = data[:include_end] + '\n/**\n  check that a wire string matches the flags specified\n  not 100% accurate, but close enough for testing\n*/\nstatic bool wire_bad_smb2_flags(struct smb_wire_string *str, int flags,\n\t\t\t\tstruct smb2_transport *transport)\n{\n\tbool server_unicode;\n\tint len;\n\tif (!str || !str->s) return true;\n\tlen = strlen(str->s);\n\tif (flags & STR_TERMINATE) len++;\n\n\tserver_unicode = smbXcli_conn_use_unicode(transport->conn);\n\tif (getenv("CLI_FORCE_ASCII") || !transport->options.unicode) {\n\t\tserver_unicode = false;\n\t}\n\n\tif ((flags & STR_UNICODE) || server_unicode) {\n\t\tlen *= 2;\n\t} else if (flags & STR_TERMINATE_ASCII) {\n\t\tlen++;\n\t}\n\tif (str->private_length != len) {\n\t\tprintf("Expected wire_length %d but got %d for \'%s\'\\n",\n\t\t       len, str->private_length, str->s);\n\t\treturn true;\n\t}\n\treturn false;\n}\n' + data[include_end:]
+
+        # Replace the wire_bad_flags
+        data = data.replace('wire_bad_flags', 'wire_bad_smb2_flags')
+
     for fnum in reversed(sorted(fnums)):
         # Change the fnum checks to status checks
         data = re.sub('\(\s*%s\s*==\s*-1\s*\)' % fnum, r'(NT_STATUS_IS_ERR(status))', data)
